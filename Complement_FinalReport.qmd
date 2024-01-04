@@ -24,6 +24,9 @@ include-before-body:
     }
 editor_options: 
   chunk_output_type: console
+execute:
+  cache: true
+
 ---
 
 This project analysed the interaction between complement system components and intestinal microbiota in the context of intestinal inflammation in IBD. Data acquisition and experiments were conducted from 02-2016 until 2018 in Innsbruck, Austria.
@@ -40,6 +43,7 @@ library(colorspace)
 source("code/FunctionsCustomBoxplotStat.R")
 source("code/FunctionsHeatmapPlotting.R")
 
+options(scipen = 999) 
 
 my_cols <- c("#669999", "#cc0000")
 cutoffval = round(log(50), 2)       # sets hard limit on range of heatmap at 50 fold expression (for log heatmaps)
@@ -283,9 +287,12 @@ boxplot_disease
 
 ### Heatmaps
 
-Heatmaps are plotted using separate helper functions. These are defined in a R script file which is stored in the *code* folder.
+Heatmaps are plotted using separate helper functions. These are defined in a R script file which is stored in the *code/* folder.
 
 ```{r qpcr_heatmap}
+#| fig-height: 5
+#| fig-width: 5
+  
 dat.m <- melt(dat.qpcr, id.vars=c("ID", "LESIONAL", "DISEASE", "SITE"))
 
 ## subsetting the original df, dropping site and histo, then calculating column mean and median by Disease and Lesion status --> 5 groups!
@@ -404,7 +411,9 @@ knitr::kable(significance_ControlCDUC, digits = 2,
 
 ```
 
-## Complement levels in feces and blood of patients with IBD
+## Complement protein levels in feces and blood of patients with IBD
+
+elisa and wieslab
 
 ## Complement opsonisation of intestinal microbiota
 
@@ -412,19 +421,22 @@ Bacteria were isolated from fecal samples using centrifugation and washing steps
 
 ***Insert antibody table here!***
 
-```{r flow_cyt}
-### For every FC Parameter (i.e. PERC_IGA, PERC_C3C, PERC_DBLEP, PERC_DBLEN, MED_C3C, MED_IGA, MEAN_C3C, MEAN_IGA):
+| Default | Left | Right | Center |
+|---------|:-----|------:|:------:|
+| 12      | 12   |    12 |   12   |
+| 123     | 123  |   123 |  123   |
+| 1       | 1    |     1 |   1    |
 
-# all summary stat with mean, sd,  median, iqr, min, max
-# Summary statistics of x per DISEASE
-# Summary statistics of x per HBI > 5 (Active CD)
-# Correlation of x per HBI (CD only)
-# Summary statistics of x  per pMayo > 2 (Active UC)
-# Correlation of x  per pMayo (UC only)
-# Summary statistics of x per Calpro Classes (50-250 as split)
-# Correlation of x with Calprotectin
+: Antibodies used for flow cytometry {#tbl-flowcyt_antibodies}
 
+see @tbl-flowcyt_antibodies
 
+### Opsonisation is increased in IBD
+First, a summary statistics table for all flow cytometry derived parameters is generated (this includes the percentage of events single positive for IgA or C3c as well as the share of double positive and double negative events). The results are shown in @tbl-flow_cyt_summarystats.
+
+```{r tbl-flow_cyt_summarystats}
+#| warning: false
+#| tbl-cap: "Summary Statistics of flow cytometry derived parameters of opsonisation"
 #### Per Disease ####
 fcdat_summarystat = dat.fc %>%
   select(DIS, PERC_IGA:MEAN_IGA) %>%
@@ -436,55 +448,34 @@ fcdat_summarystat = dat.fc %>%
   tidyr::pivot_wider(id_cols = c(Variable, DIS), names_from = Stat, values_from = value) %>%
   arrange(Variable, DIS)
 
-# Significance testing per variable
+knitr::kable(fcdat_summarystat, digits = 2, col.names = c("Variable", "Disease Group", "Mean", "Std.Dev", "Median", "IQR"))
+```
 
+@tbl-flow_cyt_wilcoxon shows a significant increase in IgA opsonisation (in terms of % opsonized bacteria). Complement opsonisation is increased in CD patients only. In these, also the median amount of complement deposited on bacterial surfaces is higher than in healthy controls. This effect is not detected for IgA opsonisation.
+
+```{r tbl-flow_cyt_wilcoxon}
+#| tbl-cap: "Results of pairwise wilcoxon tests on flow cytometry derived parameters"
+# Significance testing per variable
 stat.perc_iga = dat.fc %>%
   dplyr::select(DIS, PERC_IGA) %>%
   pairwise_wilcox_test(PERC_IGA ~ DIS, p.adjust.method = "bonferroni") %>%
   mutate(p_round = round(p.adj, digits = 3),
-         p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
-
-perc_iga_p = ggboxplot(dat.fc, x = "DIS", y = "PERC_IGA") + 
-  stat_pvalue_manual(stat.perc_iga, label ="p_round", y.position = c(90, 100, 110), tip.length = 0.01) +
-  labs(x = "Disease", y="% of IgA pos. events")
-
+         p_round = ifelse(p_round < 0.001, "< 0.001", p_round)) 
 stat.perc_c3c = dat.fc %>%
   dplyr::select(DIS, PERC_C3C) %>%
   pairwise_wilcox_test(PERC_C3C ~ DIS, p.adjust.method = "bonferroni") %>%
   mutate(p_round = round(p.adj, digits = 3),
          p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
-
-perc_c3c_p = ggboxplot(dat.fc, x = "DIS", y = "PERC_C3C") +
-  coord_cartesian(ylim = c(0,9)) + 
-  stat_pvalue_manual(stat.perc_c3c, label ="p_round", y.position = c(6, 7, 8), tip.length = 0.01) +
-  labs(x = "Disease", y="% of C3c pos. events")
-
 stat.perc_dblep = dat.fc %>%
   dplyr::select(DIS, PERC_DBLEP) %>%
   pairwise_wilcox_test(PERC_DBLEP ~ DIS, p.adjust.method = "bonferroni") %>%
   mutate(p_round = round(p.adj, digits = 3),
          p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
-
-perc_dblep_p = ggboxplot(dat.fc, x = "DIS", y = "PERC_DBLEP") +
-  coord_cartesian(ylim = c(0,22)) + 
-  stat_pvalue_manual(stat.perc_dblep, label ="p_round", y.position = c(18, 20, 22), tip.length = 0.01) +
-  labs(x = "Disease", y="% of double pos. events")
-
 stat.perc_dblen = dat.fc %>%
   dplyr::select(DIS, PERC_DBLEN) %>%
   pairwise_wilcox_test(PERC_DBLEN ~ DIS, p.adjust.method = "bonferroni") %>%
   mutate(p_round = round(p.adj, digits = 3),
          p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
-
-perc_dblen_p = ggboxplot(dat.fc, x = "DIS", y = "PERC_DBLEN") +
-  coord_cartesian(ylim = c(0,112)) + 
-  stat_pvalue_manual(stat.perc_dblen, label ="p_round", y.position = c(100,106,112), tip.length = 0.01) +
-  labs(x = "Disease", y="% of double neg. events")
-perc_dblen_p
-
-
-percentages4_disease = cowplot::plot_grid(perc_iga_p, perc_c3c_p, perc_dblep_p, perc_dblen_p)
-
 stat.med_iga = dat.fc %>%
   dplyr::select(DIS, MED_IGA) %>%
   pairwise_wilcox_test(MED_IGA ~ DIS, p.adjust.method = "bonferroni") %>%
@@ -497,101 +488,228 @@ stat.med_c3c = dat.fc %>%
   mutate(p_round = round(p.adj, digits = 3),
          p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
 
-med_iga_p = ggboxplot(dat.fc, x = "DIS", y = "MED_IGA") +
-  coord_cartesian(ylim = c(0,1e10)) + 
-  stat_pvalue_manual(stat.med_iga, label ="p_round", y.position = c(8.2e09, 10e09, 9.2e09), tip.length = 0.01) +
-  labs(x = "Disease", y="Median IgA-APC fluorescence")
+wilcoxon_all = rbind(stat.perc_iga, stat.perc_c3c, stat.perc_dblep, stat.perc_dblen,
+                     stat.med_iga, stat.med_c3c) %>%
+  select(Variable = ".y.", group1, group2, n1,n2,statistic, p, p.adj = "p_round", p.adj.signif)
+
+knitr::kable(wilcoxon_all, digits = 2, col.names = c("Variable", "Group1", "Group2", "n1", "n2", "Test statistic", "p value", "Bonferroni adj. p value", "Significance"))
+```
+
+Next, we generate figures to illustrate this finding (@fig-flow_cyt_percentages shows the percentages of single and double positive events per disease and @fig-flow_cyt_medians depicts median fluorescence intensities for IgA and C3c per disease).
+
+```{r fig-flow_cyt_percentages}
+#| fig-cap: "Percentages of IgA, C3c, double pos. and double neg. flow cytometry events per disease"
+#| fig-height: 6
+#| fig-width: 6
+
+p.perc_iga = ggboxplot(dat.fc, x = "DIS", y = "PERC_IGA",
+                       colour = "DIS", fill = "DIS", 
+                       add = "jitter", alpha = 0.5) +
+  stat_pvalue_manual(stat.perc_iga, label ="p.adj.signif", y.position = c(90, 100, 110), tip.length = 0.01)+ 
+  theme_classic(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(x = "", y = "% of IgA pos. events") +
+  scale_fill_brewer(type = "qual", palette = 2)
+
+p.perc_c3c = ggboxplot(filter(dat.fc, PERC_C3C < 20), x = "DIS", y = "PERC_C3C",
+                       colour = "DIS", fill = "DIS", 
+                       add = "jitter", alpha = 0.5) +
+  stat_pvalue_manual(stat.perc_c3c, label ="p.adj.signif", y.position = c(2,2.5,3), tip.length = 0.01) +
+  theme_classic(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(x = "", y = "% of C3c pos. events") +
+  scale_fill_brewer(type = "qual", palette = 2)
+
+p.perc_dblep = ggboxplot(dat.fc, x = "DIS", y = "PERC_DBLEP",
+                       colour = "DIS", fill = "DIS", 
+                       add = "jitter", alpha = 0.5) +
+  stat_pvalue_manual(stat.perc_dblep, label ="p.adj.signif", y.position = c(18,20,22), tip.length = 0.01) +
+  theme_classic(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(x = "", y = "% of double pos. events") +
+  scale_fill_brewer(type = "qual", palette = 2)
+
+p.perc_dblen = ggboxplot(dat.fc, x = "DIS", y = "PERC_DBLEN",
+                       colour = "DIS", fill = "DIS", 
+                       add = "jitter", alpha = 0.5) +
+  stat_pvalue_manual(stat.perc_dblen, label ="p.adj.signif", y.position = c(100,106,112), tip.length = 0.01) +
+  theme_classic(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(x = "", y = "% of double neg. events") +
+  scale_fill_brewer(type = "qual", palette = 2)
+
+
+percentages4_disease = cowplot::plot_grid(p.perc_iga, p.perc_c3c, p.perc_dblep, p.perc_dblen,align = "hv", labels = c("A","B", "C", "D"))
+percentages2_disease = cowplot::plot_grid(p.perc_iga, p.perc_c3c,align = "hv", labels = c("A","B"))
+
+# Save plots for publication
+ggsave(plot = percentages4_disease, filename = "results/flow/PerDisease_Percentages.pdf", device = "pdf", width = 6, height = 6)
+ggsave(plot = percentages2_disease, filename = "results/flow/PerDisease_Percentages_noDoubles.pdf", device = "pdf", width = 6, height = 3)
+
+percentages4_disease
+```
+
+```{r fig-flow_cyt_medians}
+#| fig-cap: "Median fluorescence intensity for IgA and C3c per disease"
+#| fig-height: 3
+#| fig-width: 6
+options(scipen = 0)
+p.med_iga = ggboxplot(dat.fc, x = "DIS", y = "MED_IGA",
+                       colour = "DIS", fill = "DIS", 
+                       add = "jitter", alpha = 0.5) +
+  stat_pvalue_manual(stat.med_iga, label ="p.adj.signif", y.position = c(8.2e09, 10e09, 9.2e09), tip.length = 0.01)+ 
+  theme_classic(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(x = "", y = "Median IgA-APC fluorescence") +
+  scale_fill_brewer(type = "qual", palette = 2)
+
+p.med_c3c = ggboxplot(dat.fc, x = "DIS", y = "MED_C3C",
+                       colour = "DIS", fill = "DIS", 
+                       add = "jitter", alpha = 0.5) +
+  stat_pvalue_manual(stat.med_c3c, label ="p.adj.signif", y.position = c(6e09, 7e09, 8e09), tip.length = 0.01)+ 
+  theme_classic(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(x = "", y = "Median C3c-FITC fluorescence") +
+  scale_fill_brewer(type = "qual", palette = 2)
   
-med_c3c_p = ggboxplot(dat.fc, x = "DIS", y = "MED_C3C") +
-  coord_cartesian(ylim = c(0,1e10)) + 
-  stat_pvalue_manual(stat.med_iga, label ="p_round", y.position = c(6e09, 7e09, 8e09), tip.length = 0.01) +
-  labs(x = "Disease", y="Median C3c-FITC fluorescence")
+perdisease_median = cowplot::plot_grid(p.med_iga, p.med_c3c, labels = c("A", "B"), align = "hv")
+# save plot for publication
+ggsave(plot = perdisease_median, filename = "results/flow/PerDisease_MedianF.pdf", device = "pdf", width = 6, height = 3)
+
+perdisease_median
+
+```
 
 
-perdisease_percentage = cowplot::plot_grid(perc_iga_p, perc_c3c_p, labels = c("A", "B"))
-perdisease_median = cowplot::plot_grid(med_iga_p, med_c3c_p, labels = c("A", "B"))
+### Microbiota opsonisation by IgA is correlated to fecal calprotectin
+IgA opsonisation of microbiota  correlates with intestinal inflammation. Fecal calprotectin is split into ranges from < 50 µg/g, 50-250 µg/g and > 250 µg/g, reflecting clinically relevant cutoffs for healthy, quiescent and active IBD. Summary statistics are outlined in @tbl-flow_cyt-summarystat-percalpro. Statistical significance testing (wilcoxon tests) is reported in @tbl-flow_cyt-wilcoxon_percalpro. Finally, @tbl-flow_cyt-correlation-calpro shows results of a correlation analysis with a continual calprotectin variable.
 
-#### Per Calpro Group ####
+```{r tbl-flow_cyt-summarystat-percalpro}
+#| warning: false
+#| tbl-cap: "Summary Statistics of flow cytometry derived parameters of opsonisation related to calprotectin range"
+options(scipen=999)
+fcdat_summarystat_calpro4 = dat.fc %>%
+  select(DIS, PERC_IGA:MEAN_IGA, CALPRO4) %>%
+  filter(!is.na(CALPRO4)) %>%
+  group_by(DIS, CALPRO4) %>%
+  summarise(across(everything(), list(mean = mean, sd = sd, median= median, IQR = IQR), 
+                   na.rm =T, .names = "{col}__{fn}")) %>%
+  tidyr::pivot_longer(cols = c(PERC_IGA__mean:MEAN_IGA__IQR), names_to = "var", values_to = "value") %>%
+  tidyr::separate(var, into = c("Variable", "Stat"), sep ="__") %>%
+  tidyr::pivot_wider(id_cols = c(Variable, DIS, CALPRO4), names_from = Stat, values_from = value) %>%
+  arrange(rev(Variable), DIS, CALPRO4)
+
+knitr::kable(fcdat_summarystat_calpro4, digits = 2, col.names = c("Variable", "Disease Group", "Fecal Calprotectin [µg/g]", "Mean", "Std.Dev", "Median", "IQR"))
+```
+
+```{r tbl-flow_cyt-wilcoxon_percalpro}
+#| tbl-cap: "Results of pairwise wilcoxon tests by fecal calprotectin range"
 stat.perc_iga_calpro4 = dat.fc %>%
   dplyr::select(CALPRO4, PERC_IGA) %>%
   pairwise_wilcox_test(PERC_IGA ~ CALPRO4, p.adjust.method = "bonferroni") %>%
   mutate(p_round = round(p.adj, digits = 3),
-         p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
-
-perc_iga_fcal4_boxplot = ggboxplot(filter(dat.fc, !is.na(CALPRO4), ), x = "CALPRO4", y = "PERC_IGA") +
-coord_cartesian(ylim = c(0,100)) + 
-  stat_pvalue_manual(stat.perc_iga_calpro4, label ="p_round", y.position = c(80, 90, 100), tip.length = 0.01) +
-  labs(x = "Fecal Calprotectin (µg/g)", y="% of IgA pos. events") 
+         p_round = ifelse(p_round < 0.001, "< 0.001", p_round)) %>%
+  select(Variable = ".y.", group1, group2, n1,n2,statistic, p, p.adj = "p_round", p.adj.signif)
 
 stat.perc_c3c_calpro4 = dat.fc %>%
   dplyr::select(CALPRO4, PERC_C3C) %>%
   pairwise_wilcox_test(PERC_C3C ~ CALPRO4, p.adjust.method = "bonferroni") %>%
   mutate(p_round = round(p.adj, digits = 3),
-         p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
-
-perc_c3c_fcal4_boxplot = ggboxplot(filter(dat.fc, !is.na(CALPRO4), ), x = "CALPRO4", y = "PERC_C3C") +
-  coord_cartesian(ylim = c(0,9)) + 
-  stat_pvalue_manual(stat.perc_c3c_calpro4, label ="p.adj.signif", y.position = c(6,7,8), tip.length = 0.01) +
-  labs(x = "Fecal Calprotectin (µg/g)", y="% of C3c pos. events")
+         p_round = ifelse(p_round < 0.001, "< 0.001", p_round)) %>%
+    select(Variable = ".y.", group1, group2, n1,n2,statistic, p, p.adj = "p_round", p.adj.signif)
 
 stat.med_iga_calpro4 = dat.fc %>%
   dplyr::select(CALPRO4, MED_IGA) %>%
   pairwise_wilcox_test(MED_IGA ~ CALPRO4, p.adjust.method = "bonferroni") %>%
   mutate(p_round = round(p, digits = 3),
-         p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
+         p_round = ifelse(p_round < 0.001, "< 0.001", p_round)) %>%
+      select(Variable = ".y.", group1, group2, n1,n2,statistic, p, p.adj = "p_round", p.adj.signif)
 
 stat.med_c3c_calpro4 = dat.fc %>%
   dplyr::select(CALPRO4, MED_C3C) %>%
   pairwise_wilcox_test(MED_C3C ~ CALPRO4, p.adjust.method = "bonferroni") %>%
   mutate(p_round = round(p, digits = 3),
-         p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
+         p_round = ifelse(p_round < 0.001, "< 0.001", p_round)) %>%
+      select(Variable = ".y.", group1, group2, n1,n2,statistic, p, p.adj = "p_round", p.adj.signif)
 
-cor_test(dat.fc, PERC_IGA, CALPRO, method = "spearman") # highly correlated
-cor_test(dat.fc, PERC_C3C, CALPRO, method = "spearman") # not correlated at all
+wilcoxon_percalpro_all = rbind(stat.perc_iga_calpro4, stat.perc_c3c_calpro4, stat.med_iga_calpro4, stat.perc_c3c_calpro4)
+knitr::kable(wilcoxon_percalpro_all, digits = 2, col.names = c("Variable", "Group1", "Group2", "n1", "n2", "Test statistic", "p value", "Bonferroni adj. p value", "Significance"))
 
-cor_test(dat.fc, MED_IGA, CALPRO, method = "spearman") # not correlated
-cor_test(dat.fc, MED_C3C, CALPRO, method = "spearman") # highly correlated
+```
 
+```{r tbl-flow_cyt-correlation-calpro}
+#| tbl-cap: "Correlation of flow cytometry opsonisation parameters with fecal calprotectin. Results from Spearman correlation analysis"
+rbind(cor_test(dat.fc, PERC_IGA, CALPRO, method = "spearman"),
+      cor_test(dat.fc, PERC_C3C, CALPRO, method = "spearman"),
+      cor_test(dat.fc, MED_IGA, CALPRO, method = "spearman"), 
+      cor_test(dat.fc, MED_C3C, CALPRO, method = "spearman")) %>% 
+  select(-var2, -statistic, -method) %>%
+  mutate(p.signif = ifelse(p< 0.001, "***", ifelse(p<0.01, "**", ifelse(p<0.05, "*", "ns")))) %>%
+  knitr::kable(digits = 2, col.names = c("Variable", "Spearman Rho", "p value", "Significance"))
 
-med_iga_fcal4_boxplot = ggboxplot(filter(dat.fc, !is.na(CALPRO4), ), x = "CALPRO4", y = "MED_IGA") +
-  coord_cartesian(ylim = c(0,1e10)) + 
-  stat_pvalue_manual(stat.med_iga_calpro4, label ="p_round", y.position = c(8e09, 9e09, 1e10), tip.length = 0.01) +
-  labs(x = "Fecal Calprotectin (µg/g)", y="Median IgA-APC fluorescence")
+```
 
-med_c3c_fcal4_boxplot = ggboxplot(filter(dat.fc, !is.na(CALPRO4), ), x = "CALPRO4", y = "MED_C3C") +
-  coord_cartesian(ylim = c(0,8e09)) + 
-  stat_pvalue_manual(stat.med_c3c_calpro4, label ="p_round", y.position = c(5e09, 6e09, 7e09), tip.length = 0.01) +
-  labs(x = "Fecal Calprotectin (µg/g)", y="Median C3c-FITC fluorescence")
+@fig-flow_cyt-percentages_calpro shows boxplot on percentages of IgA and C3c positive events and @fig-flow_cyt_medians_calpro depicts boxplots on median fluorescence intensity.
 
-percalpro4_percentage = cowplot::plot_grid(perc_iga_fcal4_boxplot, perc_c3c_fcal4_boxplot, 
+```{r fig-flow_cyt-percentages_calpro}
+#| fig-cap: "Percentages of IgA and C3c pos. flow cytometry events per calprotectin range"
+#| fig-height: 3
+#| fig-width: 6
+
+p.perc_iga_percalpro = ggboxplot(filter(dat.fc, !is.na(CALPRO4)), x = "CALPRO4", y = "PERC_IGA",
+                       fill = "CALPRO4", alpha = 0.5, add = "jitter", alpha = 0.5) +
+  stat_pvalue_manual(stat.perc_iga_calpro4, label ="p.adj.signif", y.position = c(90, 100, 110), tip.length = 0.01)+ 
+  theme_classic(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(x = "Fecal Calprotectin [µg/g]", y="% of IgA pos. events") +
+  scale_fill_brewer(type = "qual", palette = 2)
+
+p.perc_c3c_percalpro = ggboxplot(filter(dat.fc, !is.na(CALPRO4)), x = "CALPRO4", y = "PERC_C3C",
+                       fill = "CALPRO4", add = "jitter", alpha = 0.5) +
+  stat_pvalue_manual(stat.perc_c3c_calpro4, label ="p.adj.signif", y.position = c(2,2.5,3), tip.length = 0.01)+ 
+  theme_classic(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(x = "Fecal Calprotectin [µg/g]", y="% of C3c pos. events") +
+  scale_fill_brewer(type = "qual", palette = 2)
+
+percalpro4_percentage = cowplot::plot_grid(p.perc_iga_percalpro, p.perc_c3c_percalpro, 
                                            labels = c("A", "B"))
+percalpro4_percentage
 
-percalpro4_medians = cowplot::plot_grid(med_iga_fcal4_boxplot, med_c3c_fcal4_boxplot, 
+# save to file 
+ggsave(filename = "results/flow/PerCalpro4_Percentages_A-B.pdf", device = "pdf",
+       plot = percalpro4_percentage, width = 6, height = 3)
+```
+
+```{r fig-flow_cyt_medians_calpro}
+#| fig-cap: "Median Fluorescence intensities of IgA-APC C3c-FITC per calprotectin range"
+#| fig-height: 3
+#| fig-width: 6
+
+p.med_iga_percalpro = ggboxplot(filter(dat.fc, !is.na(CALPRO4)), x = "CALPRO4", y = "MED_IGA",
+                       fill = "CALPRO4", alpha = 0.5, add = "jitter") +
+  stat_pvalue_manual(stat.med_iga_calpro4, label ="p.adj.signif", y.position = c(8.5e09, 9.25e09, 1e10), tip.length = 0.01)+
+  theme_classic(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(x = "Fecal Calprotectin [µg/g]", y="Median IgA-APC fluorescence") +
+  scale_fill_brewer(type = "qual", palette = 2)
+
+p.med_c3c_percalpro = ggboxplot(filter(dat.fc, !is.na(CALPRO4)), x = "CALPRO4", y = "MED_C3C",
+                       fill = "CALPRO4", alpha = 0.5, add = "jitter") +
+  stat_pvalue_manual(stat.med_c3c_calpro4, label ="p.adj.signif", y.position = c(5e09, 6e09, 7e09), tip.length = 0.01)+
+  theme_classic(base_size = 11) +
+  theme(legend.position = "none") +
+  labs(x = "Fecal Calprotectin [µg/g]", y="Median C3c-FITC fluorescence") +
+  scale_fill_brewer(type = "qual", palette = 2)
+
+percalpro4_medians = cowplot::plot_grid(p.med_iga_percalpro, p.med_c3c_percalpro, 
                                            labels = c("C", "D"))
 
-ggsave(percalpro4_percentage, filename = "results/flow/PerCalpro4_Percentages_A-B.pdf", width = 5, height = 4)
-ggsave(percalpro4_medians, filename = "results/flow/PerCalpro4_Medians_C-D.pdf", width = 5.5, height = 4)
+percalpro4_medians
 
-
-fcdat_medians = dat.fc %>%
-  select(CALPRO4, MED_C3C, MED_IGA) %>%
-  tidyr::pivot_longer(cols = !CALPRO4, names_to = "var", values_to = "median_fluorescence")
-
-fcdat_medians_wilcox = fcdat_medians %>%
-  group_by(var) %>%
-  pairwise_wilcox_test(median_fluorescence~CALPRO4) %>%
-  mutate(p_round = round(p, digits = 3),
-         p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
-
-fcdat_percentage = dat.fc %>%
-  select(CALPRO4, PERC_C3C, PERC_IGA) %>%
-  tidyr::pivot_longer(cols = !CALPRO4, names_to = "var", values_to = "perc_pos") 
-
-fcdat_percentage_wilcox = fcdat_percentage%>%
-  group_by(var) %>%
-  pairwise_wilcox_test(perc_pos~CALPRO4) %>%
-  mutate(p_round = round(p, digits = 3),
-         p_round = ifelse(p_round < 0.001, "< 0.001", p_round))
+# save to file 
+ggsave(filename = "results/flow/PerCalpro4_Medians_C-D.pdf", device = "pdf",
+       plot = percalpro4_medians, width = 6, height = 3)
 ```
 
 ## Microbiome specificity of complement
