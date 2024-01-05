@@ -26,7 +26,9 @@ editor_options:
   chunk_output_type: console
 execute:
   cache: true
-
+bibliography: references.bib
+link-citations: true
+csl: include/vancouver.csl
 ---
 
 This project analysed the interaction between complement system components and intestinal microbiota in the context of intestinal inflammation in IBD. Data acquisition and experiments were conducted from 02-2016 until 2018 in Innsbruck, Austria.
@@ -40,6 +42,8 @@ library(reshape2)
 library(dunn.test)
 library(RColorBrewer)
 library(colorspace)
+library(dada2)
+library(phyloseq)
 source("code/FunctionsCustomBoxplotStat.R")
 source("code/FunctionsHeatmapPlotting.R")
 
@@ -102,7 +106,11 @@ For data analysis, separate *.csv* files for each data types were exported from 
 
 ## Introduction
 
-# Methods
+# Methods {#sec-methods}
+
+## Bacterial metagenomics {#sec-m_metagenomics}
+
+Bacterial DNA from paraformaldehyde fixed bacteria was extracted after FACS using the DNEasy FFPE isolation kit (Qiagen) and a Precellys 24 homogenizer (Peqlab). The V3-V4 region of the bacterial 16S rRNA gene was amplified with 341F -805R primers and added barcode sequences together with adaptor sequences and multiplex identifiers, and processed on an Illumina MiSeq sequencer with v3 chemistry (300bp paired end reads). In addition, a sample of known composition („mock community") comprised of 21 representative species) and blank controls were sequenced using the same procedure. Read quality was assessed using fastqc [@andrews2010] and sequences were filtered and aligned in dada2 [@callahan2016] with the SILVA138 reference database [@mclaren2020]. The phyloseq package [@mcmurdie2013] in R [@rcoreteam2020] was used to analyze alpha- and beta-diversity and differentially abundant taxa were assessed using a negative binomial model in DEseq2 [@love2014]. Functional mapping of taxonomic data was performed with picrust2 [@douglas2020].
 
 # Results
 
@@ -432,6 +440,7 @@ Bacteria were isolated from fecal samples using centrifugation and washing steps
 see @tbl-flowcyt_antibodies
 
 ### Opsonisation is increased in IBD
+
 First, a summary statistics table for all flow cytometry derived parameters is generated (this includes the percentage of events single positive for IgA or C3c as well as the share of double positive and double negative events). The results are shown in @tbl-flow_cyt_summarystats.
 
 ```{r tbl-flow_cyt_summarystats}
@@ -580,9 +589,9 @@ perdisease_median
 
 ```
 
-
 ### Microbiota opsonisation by IgA is correlated to fecal calprotectin
-IgA opsonisation of microbiota  correlates with intestinal inflammation. Fecal calprotectin is split into ranges from < 50 µg/g, 50-250 µg/g and > 250 µg/g, reflecting clinically relevant cutoffs for healthy, quiescent and active IBD. Summary statistics are outlined in @tbl-flow_cyt-summarystat-percalpro. Statistical significance testing (wilcoxon tests) is reported in @tbl-flow_cyt-wilcoxon_percalpro. Finally, @tbl-flow_cyt-correlation-calpro shows results of a correlation analysis with a continual calprotectin variable.
+
+IgA opsonisation of microbiota correlates with intestinal inflammation. Fecal calprotectin is split into ranges from \< 50 µg/g, 50-250 µg/g and \> 250 µg/g, reflecting clinically relevant cutoffs for healthy, quiescent and active IBD. Summary statistics are outlined in @tbl-flow_cyt-summarystat-percalpro. Statistical significance testing (wilcoxon tests) is reported in @tbl-flow_cyt-wilcoxon_percalpro. Finally, @tbl-flow_cyt-correlation-calpro shows results of a correlation analysis with a continual calprotectin variable.
 
 ```{r tbl-flow_cyt-summarystat-percalpro}
 #| warning: false
@@ -714,7 +723,30 @@ ggsave(filename = "results/flow/PerCalpro4_Medians_C-D.pdf", device = "pdf",
 
 ## Microbiome specificity of complement
 
-sorting data
+To further assess the specificity of IgA- and complement opsonisation of intestinal microbiota, flow cytometric events were physically separated into 4 distinct groups using fluorescence-activated cell sorting (FACS). These corresponded to the flow cytometric analysis (i.e. IgA+, C3c+, Double+ and Double-). From these sorting fractions, DNA was extracted using a modified spin-column based approach (see @sec-m_metagenomics).
+
+### Sequence data analysis
+For this analysis, dada2 (version: `r packageVersion("dada2")` is used).
+
+```{r res_run_dada2}
+#| warning: false
+
+library(dada2)
+# read fastq files
+path = "data/16S"
+
+fnFs <- sort(list.files(path, pattern="_R1_001.fastq", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
+# Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
+sample.names <- sapply(strsplit(basename(fnFs), "_"), `[`, 1)
+
+
+```
+
+```{r}
+
+```
+
 
 ### Taxonomic data
 
